@@ -63,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
 						const challenge = await generateCodeChallenge(verifier);
 
 						const authUrl =
-							"https://dropbox.com/oauth2/authorize?" +
+							"https://www.dropbox.com/oauth2/authorize?" +
 							new URLSearchParams({
 								client_id: "hr16cwardesohx2",
 								response_type: "code",
