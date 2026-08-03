@@ -32,18 +32,15 @@ export function activate(context: vscode.ExtensionContext) {
 			
 			progress.report({ increment: 0, message: "Connecting to Dropbox..." });
 
-			const workerRedirectUri = "https://workers.dev";
-			const isInsidersEnv = vscode.env.uriScheme === "vscode-insiders";
-
-			// 2. Clean, basic OAuth URL with zero PKCE challenge bloat
+			const workerRedirectUri = "https://easycodebackup.chows0482.workers.dev/dropbox-auth";
 			const authUrl =
-				"https://dropbox.com?" +
+				"https://www.dropbox.com/oauth2/authorize?" +
 				new URLSearchParams({
 					client_id: "hr16cwardesohx2",
 					response_type: "code",
 					token_access_type: "offline",
 					redirect_uri: workerRedirectUri,
-					state: isInsidersEnv ? "insiders" : "stable", 
+					state: vscode.env.uriScheme === "vscode-insiders" ? "insiders" : "stable", 
 					scope: "files.content.write files.content.read"
 				}).toString();
 

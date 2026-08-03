@@ -11,7 +11,6 @@ export default {
       }
 
       try {
-        // 1. Securely exchange the code for tokens on your backend worker
         const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -29,21 +28,17 @@ export default {
         }
 
         const tokens = await tokenResponse.json();
-
-        // 2. Pick the desktop scheme targeting the user's running environment
         const isInsiders = state === "insiders";
         const baseScheme = isInsiders 
           ? "vscode-insiders://chows0482.easy-code-backup/dropbox" 
           : "vscode://chows0482.easy-code-backup/dropbox";
 
-        // 3. Append tokens directly onto your redirect deep link
         const targetUri = new URL(baseScheme);
         targetUri.searchParams.set("access_token", tokens.access_token);
         if (tokens.refresh_token) {
           targetUri.searchParams.set("refresh_token", tokens.refresh_token);
         }
 
-        // 4. Return an HTML landing block that opens VS Code cleanly
         return new Response(`
           <!DOCTYPE html>
           <html>
