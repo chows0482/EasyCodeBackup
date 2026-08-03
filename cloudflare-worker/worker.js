@@ -19,19 +19,24 @@ export default {
             grant_type: "authorization_code",
             client_id: "hr16cwardesohx2",
             client_secret: env.DROPBOX_APP_SECRET,
-            redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth"
+            redirect_uri: url.origin + url.pathname 
           }).toString()
         });
 
         if (!tokenResponse.ok) {
-          return new Response("Dropbox token exchange failed", { status: 500 });
+          const errRaw = await tokenResponse.text();
+          return new Response(`Dropbox Code Refusal: ${errRaw}`, { status: 400 });
         }
 
         const tokens = await tokenResponse.json();
-        const isInsiders = state === "insiders";
-        const baseScheme = isInsiders 
-          ? "vscode-insiders://chows0482.easy-code-backup/dropbox" 
-          : "vscode://chows0482.easy-code-backup/dropbox";
+
+        let baseScheme = "vscode://chows0482.easy-code-backup/dropbox";
+        if (state) {
+          const decodedState = decodeURIComponent(decodeURIComponent(state));
+          if (decodedState.includes("vscode-insiders") || decodedState === "insiders") {
+            baseScheme = "vscode-insiders://chows0482.easy-code-backup/dropbox";
+          }
+        }
 
         const targetUri = new URL(baseScheme);
         targetUri.searchParams.set("access_token", tokens.access_token);
@@ -44,12 +49,12 @@ export default {
           <html>
           <body style="background: #1e1e1e; color: white; text-align: center; font-family: sans-serif; padding-top: 10vh;">
             <h2>Authorization Complete!</h2>
-            <p>Transferring tokens back to your active VS Code window...</p>
-            <a href="${targetUri.toString()}" style="color: #007acc;">Click here if your editor doesn't open automatically</a>
+            <p>Syncing authentication profile keys back to your editor...</p>
+            <a href="${targetUri.toString()}" style="color: #007acc; font-weight: bold; text-decoration: none;">Click here if your editor doesn't open automatically</a>
             <script>window.location.replace("${targetUri.toString()}");</script>
           </body>
           </html>
-        `, { headers: { "Content-Type": "text/html" } });
+        `, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 
       } catch (err) {
         return new Response(`Worker Interception Crash: ${err.message}`, { status: 500 });
