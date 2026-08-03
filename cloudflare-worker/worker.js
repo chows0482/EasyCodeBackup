@@ -5,6 +5,19 @@ export default {
     if (url.pathname.startsWith("/dropbox-auth")) {
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
+      const fromVSCode = url.searchParams.get("fromVSCode");
+
+      if (fromVSCode) {
+        return Response.redirect("https://www.dropbox.com/oauth2/authorize?" +
+          new URLSearchParams({
+            client_id: "hr16cwardesohx2",
+            response_type: "code",
+            token_access_type: "offline",
+            redirect_uri: url.origin + url.pathname,
+            state: state || "stable",
+            scope: "files.content.write files.content.read"
+          }).toString(), 302);
+      }
 
       if (!code) {
         return new Response("Authorization code missing from Dropbox.", { status: 400 });
@@ -20,7 +33,6 @@ export default {
             client_id: "hr16cwardesohx2",
             client_secret: env.DROPBOX_APP_SECRET,
             redirect_uri: url.origin + url.pathname,
-            _cb: Date.now().toString()
           }).toString()
         });
 
