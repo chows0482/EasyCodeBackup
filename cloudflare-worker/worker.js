@@ -19,7 +19,8 @@ export default {
             grant_type: "authorization_code",
             client_id: "hr16cwardesohx2",
             client_secret: env.DROPBOX_APP_SECRET,
-            redirect_uri: url.origin + url.pathname 
+            redirect_uri: url.origin + url.pathname,
+            _cb: Date.now().toString()
           }).toString()
         });
 
