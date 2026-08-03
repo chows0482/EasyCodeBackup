@@ -56,13 +56,14 @@ export function activate(context: vscode.ExtensionContext) {
 						const workerRedirectUri = "https://easycodebackup.chows0482.workers.dev/dropbox-auth/";
 
 						progress.report({ increment: 0, message: "Connecting to Dropbox..." });
+
 						const verifier = generateCodeVerifier();
 						await context.secrets.store("dropboxCodeVerifier", verifier);
 
 						const challenge = await generateCodeChallenge(verifier);
 
 						const authUrl =
-							"https://www.dropbox.com/oauth2/authorize?" +
+							"https://dropbox.com/oauth2/authorize?" +
 							new URLSearchParams({
 								client_id: "hr16cwardesohx2",
 								response_type: "code",
@@ -70,7 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
 								code_challenge: challenge,
 								code_challenge_method: "S256",
 								redirect_uri: workerRedirectUri,
-								state: externalRedirectUri.toString(),
+								state: vscode.env.uriScheme === "vscode-insiders" ? "insiders" : "stable", 
 								scope: "files.content.write files.content.read"
 							}).toString();
 
