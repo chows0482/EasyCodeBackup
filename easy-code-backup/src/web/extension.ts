@@ -48,21 +48,19 @@ export function activate(context: vscode.ExtensionContext) {
 				const dropboxVerifier = await context.secrets.get("dropboxCodeVerifier");
 				if (true) {
 					progress.report({ increment: 0, message: "Connecting to Dropbox..." });
-						const verifier = generateCodeVerifier();
-						await context.secrets.store(
-							"dropboxCodeVerifier",
-							verifier
+						
+						const externalRedirectUri = await vscode.env.asExternalUri(
+							vscode.Uri.parse("vscode://chows0482.easy-code-backup/dropbox")
 						);
 
+						const workerRedirectUri = "https://easycodebackup.chows0482.workers.dev/dropbox-auth/";
+
+						progress.report({ increment: 0, message: "Connecting to Dropbox..." });
+						const verifier = generateCodeVerifier();
+						await context.secrets.store("dropboxCodeVerifier", verifier);
+
 						const challenge = await generateCodeChallenge(verifier);
-						
-						const redirectUri = await vscode.env.asExternalUri(
-							vscode.Uri.parse(
-								"vscode://chows0482.easy-code-backup/dropbox"
-							)
-						);
-						
-						console.log(redirectUri.toString());
+
 						const authUrl =
 							"https://www.dropbox.com/oauth2/authorize?" +
 							new URLSearchParams({
@@ -71,11 +69,13 @@ export function activate(context: vscode.ExtensionContext) {
 								token_access_type: "offline",
 								code_challenge: challenge,
 								code_challenge_method: "S256",
-								redirect_uri: redirectUri.toString(),
+								redirect_uri: workerRedirectUri,
+								state: externalRedirectUri.toString(),
 								scope: "files.content.write files.content.read"
 							}).toString();
 
 						vscode.env.openExternal(vscode.Uri.parse(authUrl));
+
 				};
 			
 			await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate a delay for connecting to Dropbox
