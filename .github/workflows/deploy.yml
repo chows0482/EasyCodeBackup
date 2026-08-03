@@ -12,9 +12,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4.2.2
 
-      - name: Fast Deploy to Cloudflare
+      - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3.14.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: 'cloudflare-worker' 
-          no_bundle: true 
+          workingDirectory: 'cloudflare-worker'
+          wranglerVersion: '4.118.0' 

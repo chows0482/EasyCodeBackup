@@ -11,17 +11,26 @@ export default {
       }
 
       try {
-        const decodedState = decodeURIComponent(state);
-        const targetUri = new URL(decodedState);
+        const fullyDecodedState = decodeURIComponent(decodeURIComponent(state));
+        
+        let cleanState = fullyDecodedState;
+        if (cleanState.includes("vscode://")) {
+          cleanState = cleanState.substring(cleanState.indexOf("vscode://"));
+        } else if (cleanState.includes("vscode-insiders://")) {
+          cleanState = cleanState.substring(cleanState.indexOf("vscode-insiders://"));
+        }
 
+        const targetUri = new URL(cleanState);
         targetUri.searchParams.set("code", code);
 
         return Response.redirect(targetUri.toString(), 302);
       } catch (err) {
-        const fallbackUri = new URL("vscode://chows0482.easy-code-backup/dropbox");
-        fallbackUri.searchParams.set("code", code);
-        return Response.redirect(fallbackUri.toString(), 302);
+        console.error("State extraction crash:", err);
       }
+
+      const fallbackUri = new URL("vscode-insiders://chows0482.easy-code-backup/dropbox");
+      fallbackUri.searchParams.set("code", code);
+      return Response.redirect(fallbackUri.toString(), 302);
     }
 
     return new Response("Not Found", { status: 404 });
