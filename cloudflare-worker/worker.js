@@ -2,7 +2,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    if (url.pathname === "/dropbox-auth") {
+    if (url.pathname.startsWith("/dropbox-auth")) {
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
 
@@ -11,21 +11,17 @@ export default {
       }
 
       try {
-        const targetUri = state ? new URL(decodeURIComponent(state)) : null;
+        const decodedState = decodeURIComponent(state);
+        const targetUri = new URL(decodedState);
 
-        if (targetUri) {
+        targetUri.searchParams.set("code", code);
 
-          targetUri.searchParams.set("code", code);
-
-          return Response.redirect(targetUri.toString(), 302);
-        }
+        return Response.redirect(targetUri.toString(), 302);
       } catch (err) {
-        console.error("Failed to parse state URI:", err);
+        const fallbackUri = new URL("vscode://chows0482.easy-code-backup/dropbox");
+        fallbackUri.searchParams.set("code", code);
+        return Response.redirect(fallbackUri.toString(), 302);
       }
-
-      const fallbackUri = new URL("vscode://chows0482.easy-code-backup/dropbox");
-      fallbackUri.searchParams.set("code", code);
-      return Response.redirect(fallbackUri.toString(), 302);
     }
 
     return new Response("Not Found", { status: 404 });
