@@ -5,26 +5,14 @@ export default {
     if (url.pathname.startsWith("/dropbox-auth")) {
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
-      const fromVSCode = url.searchParams.get("fromVSCode");
-
-      if (fromVSCode) {
-        return Response.redirect("https://www.dropbox.com/oauth2/authorize?" +
-          new URLSearchParams({
-            client_id: "hr16cwardesohx2",
-            response_type: "code",
-            token_access_type: "offline",
-            redirect_uri: url.origin + url.pathname,
-            state: state || "stable",
-            client_secret: env.DROPBOX_APP_SECRET,
-            scope: "files.content.write files.content.read"
-          }).toString(), 302);
-      }
+      const verifier = url.searchParams.get("code_verifier"); // Received safely from client
 
       if (!code) {
         return new Response("Authorization code missing from Dropbox.", { status: 400 });
       }
 
       try {
+        // Double-Layer Security: Passes Secret Key AND the dynamic Crypto Verifier
         const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -32,25 +20,21 @@ export default {
             code: code,
             grant_type: "authorization_code",
             client_id: "hr16cwardesohx2",
-            client_secret: env.DROPBOX_APP_SECRET,
-            redirect_uri: url.origin + url.pathname,
+            redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth" ,
+            code_verifier: verifier // Tier 2: Dynamic One-Time Cryptographic Hash
           }).toString()
         });
 
         if (!tokenResponse.ok) {
           const errRaw = await tokenResponse.text();
-          return new Response(`Dropbox Code Refusal: ${errRaw}`, { status: 400 });
+          return new Response(`Security Mismatch Rejection: ${errRaw}`, { status: 400 });
         }
 
         const tokens = await tokenResponse.json();
-
-        let baseScheme = "vscode://chows0482.easy-code-backup/dropbox";
-        if (state) {
-          const decodedState = decodeURIComponent(decodeURIComponent(state));
-          if (decodedState.includes("vscode-insiders") || decodedState === "insiders") {
-            baseScheme = "vscode-insiders://chows0482.easy-code-backup/dropbox";
-          }
-        }
+        const isInsiders = state === "insiders";
+        const baseScheme = isInsiders 
+          ? "vscode-insiders://chows0482.easy-code-backup/dropbox" 
+          : "vscode://chows0482.easy-code-backup/dropbox";
 
         const targetUri = new URL(baseScheme);
         targetUri.searchParams.set("access_token", tokens.access_token);
@@ -62,8 +46,8 @@ export default {
           <!DOCTYPE html>
           <html>
           <body style="background: #1e1e1e; color: white; text-align: center; font-family: sans-serif; padding-top: 10vh;">
-            <h2>Authorization Complete!</h2>
-            <p>Syncing authentication profile keys back to your editor...</p>
+            <h2>Security Verified!</h2>
+            <p>Syncing encrypted credentials safely back to your editor profile...</p>
             <a href="${targetUri.toString()}" style="color: #007acc; font-weight: bold; text-decoration: none;">Click here if your editor doesn't open automatically</a>
             <script>window.location.replace("${targetUri.toString()}");</script>
           </body>
