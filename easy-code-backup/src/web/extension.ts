@@ -46,9 +46,13 @@ export function activate(context: vscode.ExtensionContext) {
 
 			const authUrl = "https://easycodebackup.chows0482.workers.dev/dropbox-auth?" +
 				new URLSearchParams({
-					state: vscode.env.uriScheme === "vscode-insiders" ? "insiders" : "stable",
-					fromVSCode: "true"
-            	}).toString();
+					client_id: "hr16cwardesohx2",
+					response_type: "code",
+					token_access_type: "offline",
+					redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth",
+					state: vscode.env.uriScheme === "vscode-insiders" ? "insiders" : "stable", 
+					scope: "files.content.write files.content.read"
+				}).toString();
 
 			vscode.env.openExternal(vscode.Uri.parse(authUrl));
 		});
