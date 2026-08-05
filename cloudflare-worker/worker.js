@@ -7,23 +7,33 @@ export default {
       const state = url.searchParams.get("state") || "";
 
       if (url.searchParams.get("fromVSCode") === "true") {
-        const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        const verifierBytes = new Uint8Array(32);
+        crypto.getRandomValues(verifierBytes);
+        const verifier = Array.from(verifierBytes)
           .map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 43);
-        
         const msgBuffer = new TextEncoder().encode(verifier);
         const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-        const challenge = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)))
-          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+        const hashBytes = new Uint8Array(hashBuffer);
+        let binaryString = "";
+        for (let i = 0; i < hashBytes.byteLength; i++) {
+          binaryString += String.fromCharCode(hashBytes[i]);
+        }
+
+        const challenge = btoa(binaryString)
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=/g, '');
 
         const jsonStr = JSON.stringify({ e: state || "stable", v: verifier });
         const packedState = Array.from(new TextEncoder().encode(jsonStr))
           .map(b => b.toString(16).padStart(2, '0')).join('');
 
-        return Response.redirect("https://www.dropbox.com/oauth2/authorize?" + new URLSearchParams({
+        return Response.redirect("https://dropbox.com?" + new URLSearchParams({
           client_id: "hr16cwardesohx2",
           response_type: "code",
           token_access_type: "offline",
-          redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth",
+          redirect_uri: "https://workers.dev",
           state: packedState,
           scope: "files.content.write files.content.read",
           code_challenge: challenge,
@@ -55,23 +65,20 @@ export default {
             verifier = unpackedData.v;
             targetEditor = unpackedData.e;
           }
-        } else {
-          targetEditor = decodedState.includes("insiders") ? "insiders" : "stable";
-          verifier = "";
         }
 
         const tokenParams = {
           code: code,
           grant_type: "authorization_code",
           client_id: "hr16cwardesohx2",
-          redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth"
+          redirect_uri: "https://workers.dev"
         };
 
         if (verifier) {
           tokenParams.code_verifier = verifier;
         }
 
-        const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
+        const tokenResponse = await fetch("https://dropboxapi.com", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams(tokenParams).toString()
@@ -83,7 +90,6 @@ export default {
         }
 
         const tokens = await tokenResponse.json();
-
         let baseScheme = "vscode://chows0482.easy-code-backup/dropbox";
         if (targetEditor === "insiders" || decodedState.includes("vscode-insiders")) {
           baseScheme = "vscode-insiders://chows0482.easy-code-backup/dropbox";
