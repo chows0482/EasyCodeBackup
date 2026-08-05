@@ -42,7 +42,8 @@ export default {
         }
 
         const unpacked = JSON.parse(atob(safeBase64));
-        const cleanVerifier = unpacked.v;
+        const unpacked = JSON.parse(atob(state));
+        const unpackedVerifier = unpacked.v;
         const targetEditor = unpacked.e;
 
         const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
@@ -53,7 +54,7 @@ export default {
             grant_type: "authorization_code",
             client_id: "hr16cwardesohx2",
             redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth",
-            code_verifier: cleanVerifier 
+            code_verifier: unpackedVerifier
           }).toString()
         });
 
