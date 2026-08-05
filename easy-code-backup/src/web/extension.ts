@@ -29,7 +29,7 @@ export function activate(context: vscode.ExtensionContext) {
 			cancellable: true
 		}, async (progress) => {
 			
-			progress.report({ increment: 0, message: "Connecting to Dropbox..." });
+			progress.report({ increment: 33, message: "Connecting to Dropbox..." });
 
 			const authUrl = "https://easycodebackup.chows0482.workers.dev/dropbox-auth?" +
 				new URLSearchParams({
