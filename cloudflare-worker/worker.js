@@ -41,7 +41,7 @@ export default {
           safeBase64 += '=';
         }
 
-        const unpacked = JSON.parse(atob(safeBase64));
+        const unpacked = JSON.parse(atob(decodeURIComponent(safeBase64)));
         const unpackedVerifier = unpacked.v;
         const targetEditor = unpacked.e;
 
