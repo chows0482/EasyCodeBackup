@@ -14,7 +14,10 @@ export default {
         const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
         const challenge = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)))
           .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-        const packedState = btoa(JSON.stringify({ e: state || "stable", v: verifier }));
+
+        const jsonStr = JSON.stringify({ e: state || "stable", v: verifier });
+        const packedState = Array.from(new TextEncoder().encode(jsonStr))
+          .map(b => b.toString(16).padStart(2, '0')).join('');
 
         return Response.redirect("https://www.dropbox.com/oauth2/authorize?" + new URLSearchParams({
           client_id: "hr16cwardesohx2",
@@ -33,17 +36,21 @@ export default {
       }
       
       try {
-        let safeBase64 = decodeURIComponent(state)
-          .replace(/-/g, '+')
-          .replace(/_/g, '/');
+        let verifier = "";
+        let targetEditor = "stable";
 
-        while (safeBase64.length % 4 !== 0) {
-          safeBase64 += '=';
+        if (state === "insiders" || state === "stable") {
+          targetEditor = state;
+          verifier = ""; 
+        } else {
+          const matches = state.match(/.{1,2}/g);
+          if (matches) {
+            const bytes = new Uint8Array(matches.map(byte => parseInt(byte, 16)));
+            const unpackedData = JSON.parse(new TextDecoder().decode(bytes));
+            verifier = unpackedData.v;
+            targetEditor = unpackedData.e;
+          }
         }
-
-        const unpacked = JSON.parse(atob(safeBase64));
-        const unpackedVerifier = unpacked.v;
-        const targetEditor = unpacked.e;
 
         const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
           method: "POST",
@@ -53,7 +60,7 @@ export default {
             grant_type: "authorization_code",
             client_id: "hr16cwardesohx2",
             redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth",
-            code_verifier: unpackedVerifier
+            code_verifier: verifier
           }).toString()
         });
 
