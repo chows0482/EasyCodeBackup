@@ -11,15 +11,16 @@ export default {
         crypto.getRandomValues(verifierBytes);
         const verifier = Array.from(verifierBytes)
           .map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 43);
+        
         const msgBuffer = new TextEncoder().encode(verifier);
         const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-
+        
         const hashBytes = new Uint8Array(hashBuffer);
         let binaryString = "";
         for (let i = 0; i < hashBytes.byteLength; i++) {
           binaryString += String.fromCharCode(hashBytes[i]);
         }
-
+        
         const challenge = btoa(binaryString)
           .replace(/\+/g, '-')
           .replace(/\//g, '_')
@@ -29,22 +30,23 @@ export default {
         const packedState = Array.from(new TextEncoder().encode(jsonStr))
           .map(b => b.toString(16).padStart(2, '0')).join('');
 
-        return Response.redirect("https://dropbox.com?" + new URLSearchParams({
-          client_id: "hr16cwardesohx2",
-          response_type: "code",
-          token_access_type: "offline",
-          redirect_uri: "https://workers.dev",
-          state: packedState,
-          scope: "files.content.write files.content.read",
-          code_challenge: challenge,
-          code_challenge_method: "S256"
-        }).toString(), 302);
+        const dropboxLoginUrl = new URL("https://dropbox.com");
+        dropboxLoginUrl.searchParams.set("client_id", "hr16cwardesohx2");
+        dropboxLoginUrl.searchParams.set("response_type", "code");
+        dropboxLoginUrl.searchParams.set("token_access_type", "offline");
+        dropboxLoginUrl.searchParams.set("redirect_uri", "https://workers.dev");
+        dropboxLoginUrl.searchParams.set("state", packedState);
+        dropboxLoginUrl.searchParams.set("code_challenge", challenge);
+        dropboxLoginUrl.searchParams.set("code_challenge_method", "S256");
+        dropboxLoginUrl.searchParams.set("scope", "files.content.write files.content.read");
+
+        return Response.redirect(dropboxLoginUrl.toString(), 302);
       }
 
       if (!code) {
         return new Response("Authorization code missing from Dropbox.", { status: 400 });
       }
-
+      
       try {
         let verifier = "";
         let targetEditor = "stable";
