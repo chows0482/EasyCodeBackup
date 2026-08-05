@@ -14,11 +14,11 @@ export function activate(context: vscode.ExtensionContext) {
 			const response = await fetch("https://easycodebackup.chows0482.workers.dev/dropbox-auth?" + new URLSearchParams({
 				code: code,
 				state: state || "",
-				code_verifier: verifier || ""
+				verifier: verifier || ""
 			}).toString());
 
 			if (!response.ok) {
-				vscode.window.showErrorMessage("Secure handshake verification failed.");
+				vscode.window.showErrorMessage("Failed token fetch");
 				return;
 			}
 
