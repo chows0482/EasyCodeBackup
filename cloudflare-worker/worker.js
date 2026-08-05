@@ -42,7 +42,6 @@ export default {
         }
 
         const unpacked = JSON.parse(atob(safeBase64));
-        const unpacked = JSON.parse(atob(state));
         const unpackedVerifier = unpacked.v;
         const targetEditor = unpacked.e;
 
