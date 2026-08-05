@@ -12,7 +12,6 @@ export default {
       }
 
       try {
-        // Double-Layer Security: Passes Secret Key AND the dynamic Crypto Verifier
         const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -21,7 +20,7 @@ export default {
             grant_type: "authorization_code",
             client_id: "hr16cwardesohx2",
             redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth" ,
-            code_verifier: verifier // Tier 2: Dynamic One-Time Cryptographic Hash
+            code_verifier: verifier
           }).toString()
         });
 

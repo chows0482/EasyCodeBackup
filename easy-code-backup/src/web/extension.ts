@@ -18,7 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}).toString());
 
 			if (!response.ok) {
-				vscode.window.showErrorMessage("Secure handshake verification failed.");
+				vscode.window.showErrorMessage("Failed token fetch");
 				return;
 			}
 
