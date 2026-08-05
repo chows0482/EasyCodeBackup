@@ -34,34 +34,47 @@ export default {
       if (!code) {
         return new Response("Authorization code missing from Dropbox.", { status: 400 });
       }
-      
+
       try {
         let verifier = "";
         let targetEditor = "stable";
 
-        if (state === "insiders" || state === "stable") {
-          targetEditor = state;
+        const decodedState = decodeURIComponent(state).trim();
+
+        if (decodedState.includes("vscode-insiders") || decodedState === "insiders") {
+          targetEditor = "insiders";
           verifier = ""; 
-        } else {
-          const matches = state.match(/.{1,2}/g);
+        } else if (decodedState === "stable") {
+          targetEditor = "stable";
+          verifier = "";
+        } else if (/^[0-9a-fA-F]+$/.test(decodedState)) {
+          const matches = decodedState.match(/.{1,2}/g);
           if (matches) {
             const bytes = new Uint8Array(matches.map(byte => parseInt(byte, 16)));
             const unpackedData = JSON.parse(new TextDecoder().decode(bytes));
             verifier = unpackedData.v;
             targetEditor = unpackedData.e;
           }
+        } else {
+          targetEditor = decodedState.includes("insiders") ? "insiders" : "stable";
+          verifier = "";
+        }
+
+        const tokenParams = {
+          code: code,
+          grant_type: "authorization_code",
+          client_id: "hr16cwardesohx2",
+          redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth"
+        };
+
+        if (verifier) {
+          tokenParams.code_verifier = verifier;
         }
 
         const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            code: code,
-            grant_type: "authorization_code",
-            client_id: "hr16cwardesohx2",
-            redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth",
-            code_verifier: verifier
-          }).toString()
+          body: new URLSearchParams(tokenParams).toString()
         });
 
         if (!tokenResponse.ok) {
@@ -70,9 +83,11 @@ export default {
         }
 
         const tokens = await tokenResponse.json();
-        const baseScheme = targetEditor === "insiders"
-          ? "vscode-insiders://chows0482.easy-code-backup/dropbox" 
-          : "vscode://chows0482.easy-code-backup/dropbox";
+
+        let baseScheme = "vscode://chows0482.easy-code-backup/dropbox";
+        if (targetEditor === "insiders" || decodedState.includes("vscode-insiders")) {
+          baseScheme = "vscode-insiders://chows0482.easy-code-backup/dropbox";
+        }
 
         const targetUri = new URL(baseScheme);
         targetUri.searchParams.set("access_token", tokens.access_token);
