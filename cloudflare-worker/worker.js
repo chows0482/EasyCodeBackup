@@ -4,40 +4,15 @@ export default {
 
     if (url.pathname.startsWith("/dropbox-auth")) {
       const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state") || "";
+      const state = url.searchParams.get("state") || "stable";
 
       if (url.searchParams.get("fromVSCode") === "true") {
-        const verifierBytes = new Uint8Array(32);
-        crypto.getRandomValues(verifierBytes);
-        const verifier = Array.from(verifierBytes)
-          .map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 43);
-        
-        const msgBuffer = new TextEncoder().encode(verifier);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-        
-        const hashBytes = new Uint8Array(hashBuffer);
-        let binaryString = "";
-        for (let i = 0; i < hashBytes.byteLength; i++) {
-          binaryString += String.fromCharCode(hashBytes[i]);
-        }
-        
-        const challenge = btoa(binaryString)
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=/g, '');
-
-        const jsonStr = JSON.stringify({ e: state || "stable", v: verifier });
-        const packedState = Array.from(new TextEncoder().encode(jsonStr))
-          .map(b => b.toString(16).padStart(2, '0')).join('');
-
         const dropboxLoginUrl = new URL("https://dropbox.com/oauth2/authorize");
         dropboxLoginUrl.searchParams.set("client_id", "hr16cwardesohx2");
         dropboxLoginUrl.searchParams.set("response_type", "code");
         dropboxLoginUrl.searchParams.set("token_access_type", "offline");
         dropboxLoginUrl.searchParams.set("redirect_uri", url.origin + url.pathname);
-        dropboxLoginUrl.searchParams.set("state", packedState);
-        dropboxLoginUrl.searchParams.set("code_challenge", challenge);
-        dropboxLoginUrl.searchParams.set("code_challenge_method", "S256");
+        dropboxLoginUrl.searchParams.set("state", state);
         dropboxLoginUrl.searchParams.set("scope", "files.content.write files.content.read");
 
         return Response.redirect(dropboxLoginUrl.toString(), 302);
@@ -48,42 +23,16 @@ export default {
       }
       
       try {
-        let verifier = "";
-        let targetEditor = "stable";
-
-        const decodedState = decodeURIComponent(state).trim();
-
-        if (decodedState.includes("vscode-insiders") || decodedState === "insiders") {
-          targetEditor = "insiders";
-          verifier = ""; 
-        } else if (decodedState === "stable") {
-          targetEditor = "stable";
-          verifier = "";
-        } else if (/^[0-9a-fA-F]+$/.test(decodedState)) {
-          const matches = decodedState.match(/.{1,2}/g);
-          if (matches) {
-            const bytes = new Uint8Array(matches.map(byte => parseInt(byte, 16)));
-            const unpackedData = JSON.parse(new TextDecoder().decode(bytes));
-            verifier = unpackedData.v;
-            targetEditor = unpackedData.e;
-          }
-        }
-
-        const tokenParams = {
-          code: code,
-          grant_type: "authorization_code",
-          client_id: "hr16cwardesohx2",
-          redirect_uri: url.origin + url.pathname
-        };
-
-        if (verifier) {
-          tokenParams.code_verifier = verifier;
-        }
-
         const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams(tokenParams).toString()
+          body: new URLSearchParams({
+            code: code,
+            grant_type: "authorization_code",
+            client_id: "hr16cwardesohx2",
+            client_secret: env.DROPBOX_APP_SECRET,
+            redirect_uri: url.origin + url.pathname
+          }).toString()
         });
 
         if (!tokenResponse.ok) {
@@ -92,8 +41,9 @@ export default {
         }
 
         const tokens = await tokenResponse.json();
+        
         let baseScheme = "vscode://chows0482.easy-code-backup/dropbox";
-        if (targetEditor === "insiders" || decodedState.includes("vscode-insiders")) {
+        if (state === "insiders" || state.includes("insiders")) {
           baseScheme = "vscode-insiders://chows0482.easy-code-backup/dropbox";
         }
 
