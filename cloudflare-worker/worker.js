@@ -33,7 +33,7 @@ export default {
       }
       
       try {
-        let safeBase64 = state
+        let safeBase64 = decodeURIComponent(state)
           .replace(/-/g, '+')
           .replace(/_/g, '/');
 
