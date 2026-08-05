@@ -12,7 +12,8 @@
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensionDevelopmentKind=web"
+				"--extensionDevelopmentKind=web",
+				"--locale=en"
 			],
 			"outFiles": [
 				"${workspaceFolder}/dist/web/**/*.js"

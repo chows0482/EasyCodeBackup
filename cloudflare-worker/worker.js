@@ -7,7 +7,7 @@ export default {
       const state = url.searchParams.get("state") || "stable";
 
       if (url.searchParams.get("fromVSCode") === "true") {
-        const dropboxLoginUrl = new URL("https://dropbox.com/oauth2/authorize");
+        const dropboxLoginUrl = new URL("https://www.dropbox.com/oauth2/authorize");
         dropboxLoginUrl.searchParams.set("client_id", "hr16cwardesohx2");
         dropboxLoginUrl.searchParams.set("response_type", "code");
         dropboxLoginUrl.searchParams.set("token_access_type", "offline");
