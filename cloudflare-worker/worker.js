@@ -4,14 +4,47 @@ export default {
 
     if (url.pathname.startsWith("/dropbox-auth")) {
       const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state");
-      const verifier = url.searchParams.get("verifier");
-      
+      const state = url.searchParams.get("state") || "";
+
+      if (url.searchParams.get("fromVSCode") === "true") {
+        const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+          .map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 43);
+        
+        const msgBuffer = new TextEncoder().encode(verifier);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const challenge = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        const packedState = btoa(JSON.stringify({ e: state || "stable", v: verifier }));
+
+        return Response.redirect("https://www.dropbox.com/oauth2/authorize?" + new URLSearchParams({
+          client_id: "hr16cwardesohx2",
+          response_type: "code",
+          token_access_type: "offline",
+          redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth",
+          state: packedState,
+          scope: "files.content.write files.content.read",
+          code_challenge: challenge,
+          code_challenge_method: "S256"
+        }).toString(), 302);
+      }
+
       if (!code) {
         return new Response("Authorization code missing from Dropbox.", { status: 400 });
       }
-
+      
       try {
+        let safeBase64 = state
+          .replace(/-/g, '+')
+          .replace(/_/g, '/');
+
+        while (safeBase64.length % 4 !== 0) {
+          safeBase64 += '=';
+        }
+
+        const unpacked = JSON.parse(atob(safeBase64));
+        const cleanVerifier = unpacked.v;
+        const targetEditor = unpacked.e;
+
         const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -19,8 +52,8 @@ export default {
             code: code,
             grant_type: "authorization_code",
             client_id: "hr16cwardesohx2",
-            redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth" ,
-            code_verifier: verifier
+            redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth",
+            code_verifier: cleanVerifier 
           }).toString()
         });
 
@@ -30,8 +63,7 @@ export default {
         }
 
         const tokens = await tokenResponse.json();
-        const isInsiders = state === "insiders";
-        const baseScheme = isInsiders 
+        const baseScheme = targetEditor === "insiders"
           ? "vscode-insiders://chows0482.easy-code-backup/dropbox" 
           : "vscode://chows0482.easy-code-backup/dropbox";
 
@@ -57,7 +89,6 @@ export default {
         return new Response(`Worker Interception Crash: ${err.message}`, { status: 500 });
       }
     }
-
     return new Response("Not Found", { status: 404 });
   },
 };
