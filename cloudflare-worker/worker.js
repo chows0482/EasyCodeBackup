@@ -3,23 +3,20 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith("/dropbox-auth")) {
-      const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state") || "stable";
-
-      if (url.searchParams.get("fromVSCode") === "true") {
+      if (url.searchParams.get("state-fromVSCode")) {
         const dropboxLoginUrl = new URL("https://www.dropbox.com/oauth2/authorize");
         dropboxLoginUrl.searchParams.set("client_id", "hr16cwardesohx2");
         dropboxLoginUrl.searchParams.set("response_type", "code");
         dropboxLoginUrl.searchParams.set("token_access_type", "offline");
-        dropboxLoginUrl.searchParams.set("redirect_uri", url.origin + url.pathname);
-        dropboxLoginUrl.searchParams.set("state", state);
-        dropboxLoginUrl.searchParams.set("scope", "files.content.write files.content.read");
+        dropboxLoginUrl.searchParams.set("redirect_uri", "https://easy-code-backup.chows0482.workers.dev/dropbox-auth");
+        dropboxLoginUrl.searchParams.set("state", url.searchParams.get("state-fromVSCode") || "stable");
 
         return Response.redirect(dropboxLoginUrl.toString(), 302);
       }
 
+      const code = url.searchParams.get("code");
       if (!code) {
-        return new Response("Authorization code missing from Dropbox.", { status: 400 });
+        return new Response("Authorization code missing from Dropbox", { status: 400 });
       }
       
       try {
@@ -31,7 +28,7 @@ export default {
             grant_type: "authorization_code",
             client_id: "hr16cwardesohx2",
             client_secret: env.DROPBOX_APP_SECRET,
-            redirect_uri: url.origin + url.pathname
+            redirect_uri: "https://easy-code-backup.chows0482.workers.dev/dropbox-auth"
           }).toString()
         });
 
