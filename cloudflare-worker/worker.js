@@ -38,7 +38,8 @@ export default {
         }
 
         const tokens = await tokenResponse.json();
-
+        const state = url.searchParams.get("state") || "stable";
+        
         let baseScheme = "vscode://chows0482.easy-code-backup/dropbox";
         if (state === "insiders" || state.includes("insiders")) {
           baseScheme = "vscode-insiders://chows0482.easy-code-backup/dropbox";
