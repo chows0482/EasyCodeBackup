@@ -18,7 +18,7 @@ export default {
       if (!code) {
         return new Response("Authorization code missing from Dropbox", { status: 400 });
       }
-      
+
       try {
         const tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
           method: "POST",
@@ -38,7 +38,7 @@ export default {
         }
 
         const tokens = await tokenResponse.json();
-        
+
         let baseScheme = "vscode://chows0482.easy-code-backup/dropbox";
         if (state === "insiders" || state.includes("insiders")) {
           baseScheme = "vscode-insiders://chows0482.easy-code-backup/dropbox";
@@ -62,9 +62,7 @@ export default {
           </html>
         `, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 
-      } catch (err) {
-        return new Response(`Worker Interception Crash: ${err.message}`, { status: 500 });
-      }
+      } catch (error) { return new Response(`Worker Interception Crash: ${error.message}: ${error.stack}`, { status: 500 }); }
     }
     return new Response("Not Found", { status: 404 });
   },
