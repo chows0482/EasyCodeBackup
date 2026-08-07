@@ -8,7 +8,7 @@ export default {
         dropboxLoginUrl.searchParams.set("client_id", "hr16cwardesohx2");
         dropboxLoginUrl.searchParams.set("response_type", "code");
         dropboxLoginUrl.searchParams.set("token_access_type", "offline");
-        dropboxLoginUrl.searchParams.set("redirect_uri", "https://easy-code-backup.chows0482.workers.dev/dropbox-auth");
+        dropboxLoginUrl.searchParams.set("redirect_uri", "https://easycodebackup.chows0482.workers.dev/dropbox-auth");
         dropboxLoginUrl.searchParams.set("state", url.searchParams.get("state-fromVSCode") || "stable");
 
         return Response.redirect(dropboxLoginUrl.toString(), 302);
