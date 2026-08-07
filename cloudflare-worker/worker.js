@@ -28,7 +28,7 @@ export default {
             grant_type: "authorization_code",
             client_id: "hr16cwardesohx2",
             client_secret: env.DROPBOX_APP_SECRET,
-            redirect_uri: "https://easy-code-backup.chows0482.workers.dev/dropbox-auth"
+            redirect_uri: "https://easycodebackup.chows0482.workers.dev/dropbox-auth"
           }).toString()
         });
 
