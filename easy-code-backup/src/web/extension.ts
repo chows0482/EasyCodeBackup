@@ -4,19 +4,17 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const uriHandler = vscode.window.registerUriHandler({
 		handleUri: async (uri) => {
-			console.log("URI RECEIVED:", uri.toString());
-			const params = new URLSearchParams(uri.query);
+			if (uri.path === "/dropbox-tokens") {
+				console.log("URI received from Dropbox");
+				const params = new URLSearchParams(uri.query);
 
-			const accessToken = params.get("access_token");
-			const refreshToken = params.get("refresh_token");
+				const accessToken = params.get("access_token");
+				const refreshToken = params.get("refresh_token");
 
-			if (accessToken) {
-				await context.secrets.store("dropboxAccessToken", accessToken);
+				if (accessToken) { await context.secrets.store("dropboxAccessToken", accessToken); }
+				if (refreshToken) { await context.secrets.store("dropboxRefreshToken", refreshToken); }
+				vscode.window.showInformationMessage("Successfully connected to Dropbox!");
 			}
-			if (refreshToken) {
-				await context.secrets.store("dropboxRefreshToken", refreshToken);
-			}
-			vscode.window.showInformationMessage("Successfully connected to Dropbox!");
 		}
 	});
 
@@ -28,15 +26,14 @@ export function activate(context: vscode.ExtensionContext) {
 			title: "Backing up to Dropbox...",
 			cancellable: true
 		}, async (progress) => {
-			
-			progress.report({ increment: 33, message: "Connecting to Dropbox..." });
+			if (!context.secrets.get("dropboxAccessToken")) {
+				progress.report({ increment: 5, message: "Connecting to Dropbox..." });
 
-			const authUrl = "https://easycodebackup.chows0482.workers.dev/dropbox-auth?" +
-				new URLSearchParams({
-					"state-fromVSCode": vscode.env.uriScheme === "vscode-insiders" ? "insiders" : "stable",
-				}).toString();
-
-			vscode.env.openExternal(vscode.Uri.parse(authUrl));
+				vscode.env.openExternal(vscode.Uri.parse("https://easycodebackup.chows0482.workers.dev/dropbox-auth?" +
+					new URLSearchParams({
+						"state-fromVSCode": vscode.env.uriScheme === "vscode-insiders" ? "insiders" : "stable",
+					}).toString()));
+			}
 		});
 	});
 
