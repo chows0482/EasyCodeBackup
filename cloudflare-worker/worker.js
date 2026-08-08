@@ -5,7 +5,7 @@ export default {
     if (url.pathname.startsWith("/dropbox") && request.method == "POST") {
       const formData = await request.formData();
 
-      const accessToken = formData.get("accessToken");
+      let accessToken = formData.get("accessToken");
       const refreshToken = formData.get("refreshToken");
       const zippedFile = formData.get("zippedFile");
 
