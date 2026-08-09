@@ -111,19 +111,17 @@ export default {
         }
 
         const testUpload = await fetch(
-          "https://api.dropboxapi.com/2/files/upload",
+          "https://api.dropboxapi.com/2/files/save_url",
           {
             method: "POST",
             headers: {
               Authorization: `Basic ${btoa("hr16cwardesohx2:" + env.DROPBOX_APP_SECRET)}`,
-              "Content-Type": "application/x-www-form-urlencoded",
-              autorename: false,
-              mode: "add",
-              mute: false,
-              path: "/README.md",
-              strict_conflict: false,
+              "Content-Type": "application/json",
             },
-            body: "Easy Code Backup has been authorized and is working! You can now use the Easy Code Backup extension in VSCode to backup and sync your code to the Dropbox Easy Code Backup app folder.",
+            body: {
+              url: "https://raw.githubusercontent.com/chows0482/EasyCodeBackup/refs/heads/main/README.md",
+              path: "/README.md",
+            },
           },
         );
 
