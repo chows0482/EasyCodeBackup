@@ -8,20 +8,25 @@ export default {
       let accessToken = formData.get("accessToken");
       const refreshToken = formData.get("refreshToken");
       const zippedFile = formData.get("zippedFile");
+      const systemTimeZone = formData.get("systemTimeZone");
+
+      if (!zippedFile || typeof zippedFile === "string") {
+        return new Response("No valid file attached.", { status: 400 });
+      }
 
       const accessTokenValidity = await fetch(
         "https://api.dropboxapi.com/2/check/user",
         {
           method: "POST",
           headers: {
-            Authorization: "Bearer " + accessToken,
+            Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ query: "valid" }),
         },
       );
 
-      if (accessTokenValidity.result !== "valid") {
+      if ((await accessTokenValidity.json()).result !== "valid") {
         // Refresh the access token
         const tokenResponse = await fetch(
           "https://api.dropboxapi.com/oauth2/token",
@@ -40,7 +45,115 @@ export default {
         accessToken = await tokenResponse.json().access_token;
       }
 
-      return new Response("queued", { status: 202 });
+      let uploadSessionStartResponse;
+      try {
+        uploadSessionStartResponse = await fetch(
+          "https://content.dropboxapi.com/2/files/upload_session/start",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Dropbox-API-Arg": JSON.stringify({ close: false }),
+              "Content-Type": "application/octet-stream",
+            },
+          },
+        );
+      } catch (error) {
+        return new Response(`Upload session start failed: ${error.message}`, {
+          status: 500,
+        });
+      }
+
+      const sessionId = await uploadSessionStartResponse.json().session_id;
+      const CHUNK_MiB = 64 * 1024 * 1024; // 64 MiB
+      const zipSize = zippedFile.size;
+      let offset = 0;
+
+      while (offset < zipSize) {
+        const nextOffset = Math.min(offset + CHUNK_MiB, zipSize);
+        const chunkBlob = zippedFile.slice(offset, nextOffset);
+
+        let uploadSessionAppendResponse;
+        try {
+          uploadSessionAppendResponse = await fetch(
+            "https://content.dropboxapi.com/2/files/upload_session/append_v2",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Dropbox-API-Arg": JSON.stringify({
+                  close: false,
+                  cursor: {
+                    offset: offset,
+                    session_id: sessionId,
+                  },
+                }),
+                "Content-Type": "application/octet-stream",
+              },
+              body: chunkBlob,
+            },
+          );
+        } catch (error) {
+          if (error.message.includes("concurrent_session_invalid_offset")) {
+            nextOffset = offset;
+          } else {
+            return new Response(
+              `Upload session append failed at offset ${offset}: ${error.message}`,
+              { status: 500 },
+            );
+          }
+        }
+        offset = nextOffset;
+      }
+
+      const localDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: systemTimeZone || "UTC",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+
+      let localTime = new Intl.DateTimeFormat("en-CA", {
+        timeZone: systemTimeZone || "UTC",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(new Date());
+      const match = localTime.match(/(\d{2}):(\d{2})/);
+      localTime = `${match[1]}h${match[2]}m`;
+
+      let uploadSessionFinishResponse;
+      try {
+        uploadSessionFinishResponse = await fetch(
+          "https://content.dropboxapi.com/2/files/upload_session/finish",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Dropbox-API-Arg": JSON.stringify({
+                commit: {
+                  autorename: true,
+                  mode: "add",
+                  mute: true,
+                  path: `/${zippedFile.name}/${localDate}/${localTime}.zip`,
+                  strict_conflict: false,
+                },
+                cursor: {
+                  offset: zipSize,
+                  session_id: sessionId,
+                },
+              }),
+              "Content-Type": "application/octet-stream",
+            },
+          },
+        );
+      } catch (error) {
+        return new Response(`Upload session finish failed: ${error.message}`, {
+          status: 500,
+        });
+      }
+
+      return new Response("This is a filepath placeholder", { status: 201 });
     }
 
     if (url.pathname.startsWith("/dropbox-auth")) {
@@ -69,24 +182,21 @@ export default {
           status: 400,
         });
       }
-
+      let tokenResponse;
       try {
-        const tokenResponse = await fetch(
-          "https://api.dropboxapi.com/oauth2/token",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Basic ${btoa("hr16cwardesohx2:" + env.DROPBOX_APP_SECRET)}`,
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({
-              code: code,
-              redirect_uri:
-                "https://easycodebackup.chows0482.workers.dev/dropbox-auth",
-              grant_type: "authorization_code",
-            }).toString(),
+        tokenResponse = await fetch("https://api.dropboxapi.com/oauth2/token", {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${btoa("hr16cwardesohx2:" + env.DROPBOX_APP_SECRET)}`,
+            "Content-Type": "application/x-www-form-urlencoded",
           },
-        );
+          body: new URLSearchParams({
+            code: code,
+            redirect_uri:
+              "https://easycodebackup.chows0482.workers.dev/dropbox-auth",
+            grant_type: "authorization_code",
+          }).toString(),
+        });
 
         if (!tokenResponse.ok) {
           const errRaw = await tokenResponse.text();
