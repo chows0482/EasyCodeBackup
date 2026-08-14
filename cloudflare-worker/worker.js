@@ -26,7 +26,9 @@ export default {
         },
       );
 
-      if ((await accessTokenValidity.json()).result !== "valid") {
+      const accessTokenValidityObject = await accessTokenValidity.json();
+
+      if (accessTokenValidityObject.result !== "valid") {
         // Refresh the access token
         const tokenResponse = await fetch(
           "https://api.dropboxapi.com/oauth2/token",
@@ -42,7 +44,8 @@ export default {
             }).toString(),
           },
         );
-        accessToken = await tokenResponse.json().access_token;
+        const tokenResponseObject = await tokenResponse.json();
+        accessToken = tokenResponseObject.access_token;
       }
 
       let uploadSessionStartResponse;
@@ -153,9 +156,12 @@ export default {
         });
       }
 
-      return new Response(JSON.stringify(uploadSessionFinishResponse.json()), {
-        status: 201,
-      });
+      return new Response(
+        await JSON.stringify(uploadSessionFinishResponse.json()),
+        {
+          status: 201,
+        },
+      );
     }
 
     if (url.pathname.startsWith("/dropbox-auth")) {
