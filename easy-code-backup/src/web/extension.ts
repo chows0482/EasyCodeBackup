@@ -96,7 +96,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 				if (response.ok) {
 					const result = await response.text();
-					progress.report({ increment: 100, message: `Uploaded as: ${result}` });
+					progress.report({ increment: 100 });
+					vscode.window.showInformationMessage(`Backup successful! Uploaded as: ${result}`);
 				} else {
 					const errText = await response.text();
 					vscode.window.showErrorMessage(`Upload failed (${response.status}): ${errText}`);
