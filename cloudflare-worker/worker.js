@@ -153,7 +153,9 @@ export default {
         });
       }
 
-      return new Response("This is a filepath placeholder", { status: 201 });
+      return new Response(JSON.stringify(uploadSessionFinishResponse), {
+        status: 201,
+      });
     }
 
     if (url.pathname.startsWith("/dropbox-auth")) {
