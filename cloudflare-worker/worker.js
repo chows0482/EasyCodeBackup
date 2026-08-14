@@ -122,8 +122,13 @@ export default {
         minute: "2-digit",
         hour12: false,
       }).format(new Date());
+
       const match = localTime.match(/(\d{2}):(\d{2})/);
-      localTime = `${match[1]}h${match[2]}m`;
+      if (match && match[1] && match[2]) {
+        localTime = `${match[1]}h${match[2]}m`;
+      } else {
+        localTime = localTime.replace(/:/g, "-");
+      }
 
       let uploadSessionFinishResponse;
       try {
@@ -138,7 +143,7 @@ export default {
                   autorename: true,
                   mode: "add",
                   mute: true,
-                  path: `/${zippedFile.name}/${localDate}/${localTime}.zip`,
+                  path: `/${zippedFile.name}/Project.zip`,
                   strict_conflict: false,
                 },
                 cursor: {
