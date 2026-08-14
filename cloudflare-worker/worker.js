@@ -156,8 +156,10 @@ export default {
         });
       }
 
+      const uploadSessionFinishResponseObject =
+        await uploadSessionFinishResponse.json();
       return new Response(
-        await JSON.stringify(uploadSessionFinishResponse.json()),
+        await JSON.stringify(uploadSessionFinishResponseObject),
         {
           status: 201,
         },
