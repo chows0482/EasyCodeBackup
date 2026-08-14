@@ -70,7 +70,7 @@ export default {
       let offset = 0;
 
       while (offset < zipSize) {
-        const nextOffset = Math.min(offset + CHUNK_MiB, zipSize);
+        let nextOffset = Math.min(offset + CHUNK_MiB, zipSize);
         const chunkBlob = zippedFile.slice(offset, nextOffset);
 
         let uploadSessionAppendResponse;

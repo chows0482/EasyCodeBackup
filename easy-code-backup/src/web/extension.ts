@@ -74,7 +74,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 				if (token.isCancellationRequested) { throw new Error("Backup cancelled by user."); }
 				
-				vscode.window.showInformationMessage("Compressing folder...");
+				progress.report({ increment: 15, message: "Compressing folder..." });
 				const zippedData = fflate.zipSync(zipStructure);
 
 				const zipBlob = new Blob([zippedData], { type: 'application/zip' });
@@ -87,7 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
 					formData.append('refreshToken', refreshToken || '');
 					formData.append('systemTimeZone', systemTimeZone);
 
-				vscode.window.showInformationMessage(`Uploading ${folderName}.zip...`);
+				progress.report({ increment: 25, message: `Uploading ${folderName}.zip...` });
 				
 				const response = await fetch('https://easycodebackup.chows0482.workers.dev/dropbox', {
 					method: 'POST',
@@ -96,7 +96,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 				if (response.ok) {
 					const result = await response.text();
-					vscode.window.showInformationMessage(`Uploaded as: ${result}`);
+					progress.report({ increment: 100, message: `Uploaded as: ${result}` });
 				} else {
 					const errText = await response.text();
 					vscode.window.showErrorMessage(`Upload failed (${response.status}): ${errText}`);
