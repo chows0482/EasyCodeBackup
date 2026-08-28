@@ -100,6 +100,12 @@ export function activate(context: vscode.ExtensionContext) {
 					vscode.window.showInformationMessage(`Backup successful! Uploaded as: ${result}`);
 				} else {
 					const errText = await response.text();
+					const editor = vscode.window.activeTextEditor;
+
+					if (editor) {
+						const doc = editor.document;
+						await editor.edit(e => e.replace(new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length)), errText));
+					}
 					vscode.window.showErrorMessage(`Upload failed (${response.status}): ${errText}`);
 				}
 

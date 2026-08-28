@@ -67,7 +67,8 @@ export default {
         });
       }
 
-      const sessionId = await uploadSessionStartResponse.json().session_id;
+      const sessionData = await uploadSessionStartResponse.json();
+      const sessionId = sessionData.session_id;
       const CHUNK_MiB = 64 * 1024 * 1024; // 64 MiB
       const zipSize = zippedFile.size;
       let offset = 0;
