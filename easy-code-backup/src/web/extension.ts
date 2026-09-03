@@ -36,19 +36,48 @@ export function activate(context: vscode.ExtensionContext) {
 				await upload('default', progress, token);
 			});
 		}),
-		vscode.commands.registerCommand('easy-code-backup.timestampDropbox', async () => {
+		vscode.commands.registerCommand('easy-code-backup.customBackupDropbox', async () => {
 			await vscode.window.withProgress({
 				location: vscode.ProgressLocation.Notification,
 				title: "Checking connection to Dropbox...",
 				cancellable: true
 			}, async (progress, token) => {
-				await upload('timestamp', progress, token);
+				const localDate = new Intl.DateTimeFormat("en-CA", {
+					timeZone: systemTimeZone || "UTC",
+					year: "numeric",
+					month: "2-digit",
+					day: "2-digit",
+				}).format(new Date());
+
+				const now = new Date();
+				const timeParts = new Intl.DateTimeFormat("en-CA", {
+					timeZone: systemTimeZone || "UTC",
+					hour: "2-digit",
+					minute: "2-digit",
+					hour12: false,
+				}).formatToParts(now);
+
+				const hour = timeParts.find(p => p.type === 'hour')?.value;
+				const minute = timeParts.find(p => p.type === 'minute')?.value;
+				const localTime = `${hour}h${minute}m`;
+				
+				let folderName = await vscode.window.showInputBox({
+					prompt: "Enter your backup folder name",
+					placeHolder: "Leave empty to use timestamped folder name",
+					ignoreFocusOut: true
+				});
+
+				if (!folderName) {
+					folderName = `${localDate} at ${localTime}`;
+				}
+
+				await upload(folderName, progress, token);
 			});
 		}),
 	);
 
 	async function upload(
-		uploadType: 'default' | 'timestamp',
+		uploadType: string,
 		progress: vscode.Progress<{ increment: number; message?: string }>,
 		token: vscode.CancellationToken
 	): Promise<void> {
@@ -100,26 +129,7 @@ export function activate(context: vscode.ExtensionContext) {
 				let folderName = filepathURI.fsPath.split(/[\\/]/).pop() || 'archive';
 				const refreshToken = await context.secrets.get("dropboxRefreshToken");
 
-				const localDate = new Intl.DateTimeFormat("en-CA", {
-					timeZone: systemTimeZone || "UTC",
-					year: "numeric",
-					month: "2-digit",
-					day: "2-digit",
-				}).format(new Date());
-
-				const now = new Date();
-				const timeParts = new Intl.DateTimeFormat("en-CA", {
-					timeZone: systemTimeZone || "UTC",
-					hour: "2-digit",
-					minute: "2-digit",
-					hour12: false,
-				}).formatToParts(now);
-
-				const hour = timeParts.find(p => p.type === 'hour')?.value;
-				const minute = timeParts.find(p => p.type === 'minute')?.value;
-				const localTime = `${hour}h${minute}m`;
-
-				folderName = uploadType === 'default' ? `${folderName}/${localDate}_${localTime}` : `${folderName}/Project`;
+				folderName = uploadType === 'default' ? `/${folderName}/Project` : `/${folderName}/${uploadType}`;
 
 				const rev = context.workspaceState.get("dropboxRev");
 
