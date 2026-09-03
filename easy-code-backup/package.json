@@ -16,6 +16,10 @@
   "contributes": {
     "commands": [
       {
+        "command": "easy-code-backup.timestampDropbox",
+        "title": "Easy Code Backup: Backup to Dropbox with Timestamp"
+      },
+      {
         "command": "easy-code-backup.backupDropbox",
         "title": "Easy Code Backup: Backup to Dropbox"
       }

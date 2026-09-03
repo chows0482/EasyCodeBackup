@@ -9,6 +9,7 @@ export default {
       const refreshToken = formData.get("refreshToken");
       const zippedFile = formData.get("zippedFile");
       const systemTimeZone = formData.get("systemTimeZone");
+      const uploadMode = formData.get("uploadMode");
 
       if (!zippedFile || typeof zippedFile === "string") {
         return new Response("No valid file attached.", { status: 400 });
@@ -110,28 +111,8 @@ export default {
         offset = nextOffset;
       }
 
-      const localDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: systemTimeZone || "UTC",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date());
-
-      let localTime = new Intl.DateTimeFormat("en-CA", {
-        timeZone: systemTimeZone || "UTC",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }).format(new Date());
-
-      const match = localTime.match(/(\d{2}):(\d{2})/);
-      if (match && match[1] && match[2]) {
-        localTime = `${match[1]}h${match[2]}m`;
-      } else {
-        localTime = localTime.replace(/:/g, "-");
-      }
-
       let uploadSessionFinishResponse;
+
       try {
         uploadSessionFinishResponse = await fetch(
           "https://content.dropboxapi.com/2/files/upload_session/finish",
@@ -142,9 +123,9 @@ export default {
               "Dropbox-API-Arg": JSON.stringify({
                 commit: {
                   autorename: true,
-                  mode: "add",
+                  mode: JSON.parse(uploadMode),
                   mute: true,
-                  path: `/${zippedFile.name}/Project.zip`,
+                  path: zippedFile.name,
                   strict_conflict: false,
                 },
                 cursor: {

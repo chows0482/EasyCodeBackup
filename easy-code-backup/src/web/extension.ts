@@ -24,16 +24,35 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 	});
-
 	context.subscriptions.push(uriHandler);
+	
+	context.subscriptions.push(
+		vscode.commands.registerCommand('easy-code-backup.backupDropbox', async () => {
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Checking connection to Dropbox...",
+				cancellable: true
+			}, async (progress, token) => {
+				await upload('default', progress, token);
+			});
+		}),
+		vscode.commands.registerCommand('easy-code-backup.timestampDropbox', async () => {
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Checking connection to Dropbox...",
+				cancellable: true
+			}, async (progress, token) => {
+				await upload('timestamp', progress, token);
+			});
+		}),
+	);
 
-	const disposable = vscode.commands.registerCommand('easy-code-backup.backupDropbox', async () => {
-		await vscode.window.withProgress({
-			location: vscode.ProgressLocation.Notification,
-			title: "Checking connection to Dropbox...",
-			cancellable: true
-		}, async (progress, token) => {
-			try {
+	async function upload(
+		uploadType: 'default' | 'timestamp',
+		progress: vscode.Progress<{ increment: number; message?: string }>,
+		token: vscode.CancellationToken
+	): Promise<void> {
+		try {
 				let accessToken = await context.secrets.get("dropboxAuthAccessToken");
 				if (!accessToken) {
 					progress.report({ increment: 5, message: "Connecting to Dropbox..." });
@@ -78,14 +97,38 @@ export function activate(context: vscode.ExtensionContext) {
 				const zippedData = fflate.zipSync(zipStructure);
 
 				const zipBlob = new Blob([zippedData], { type: 'application/zip' });
-				const folderName = filepathURI.fsPath.split(/[\\/]/).pop() || 'archive';
+				let folderName = filepathURI.fsPath.split(/[\\/]/).pop() || 'archive';
 				const refreshToken = await context.secrets.get("dropboxRefreshToken");
 
+				const localDate = new Intl.DateTimeFormat("en-CA", {
+					timeZone: systemTimeZone || "UTC",
+					year: "numeric",
+					month: "2-digit",
+					day: "2-digit",
+				}).format(new Date());
+
+				const now = new Date();
+				const timeParts = new Intl.DateTimeFormat("en-CA", {
+					timeZone: systemTimeZone || "UTC",
+					hour: "2-digit",
+					minute: "2-digit",
+					hour12: false,
+				}).formatToParts(now);
+
+				const hour = timeParts.find(p => p.type === 'hour')?.value;
+				const minute = timeParts.find(p => p.type === 'minute')?.value;
+				const localTime = `${hour}h${minute}m`;
+
+				folderName = uploadType === 'default' ? `${folderName}/${localDate}_${localTime}` : `${folderName}/Project`;
+
+				const rev = context.workspaceState.get("dropboxRev");
+
 				const formData = new FormData();
-					formData.append('zippedFile', zipBlob, `${folderName}.zip`); 
+					formData.append('zippedFile', zipBlob, folderName); 
 					formData.append('accessToken', accessToken || '');
 					formData.append('refreshToken', refreshToken || '');
 					formData.append('systemTimeZone', systemTimeZone);
+					formData.append('uploadMode', rev ? JSON.stringify({ ".tag": "update", "update": rev }) : JSON.stringify({ ".tag": "add" }));
 
 				progress.report({ increment: 25, message: `Uploading ${folderName}.zip...` });
 				
@@ -95,25 +138,27 @@ export function activate(context: vscode.ExtensionContext) {
 				});
 
 				if (response.ok) {
-					const result = await response.text();
+					const result = await response.json();
+					context.workspaceState.update("dropboxRev", result.rev);
 					progress.report({ increment: 100 });
-					vscode.window.showInformationMessage(`Backup successful! Uploaded as: ${result}`);
+					vscode.window.showInformationMessage(`Backup successful! Uploaded as: ${result.path_display}`);
 				} else {
 					const errText = await response.text();
-					const editor = vscode.window.activeTextEditor;
-
-					if (editor) {
-						const doc = editor.document;
-						await editor.edit(e => e.replace(new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length)), errText));
-					}
+					const errDoc = await vscode.workspace.openTextDocument({
+						content: `### Upload Failed (${response.status})\n\n\`\`\`html\n${errText}\n\`\`\``,
+						language: 'markdown'
+					});
+					await vscode.window.showTextDocument(errDoc, {
+						preview: false, 
+						viewColumn: vscode.ViewColumn.Active 
+					});
 					vscode.window.showErrorMessage(`Upload failed (${response.status}): ${errText}`);
 				}
 
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Process error: ${error.message}`);
 			}
-		});
-	});
+	}
 
 	async function buildZipStructure(
 		dirUri: vscode.Uri, 
@@ -139,8 +184,6 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 	}
-
-	context.subscriptions.push(disposable);
 }
 
 export function deactivate() {}
