@@ -100,11 +100,11 @@ export default {
 
         if (!uploadSessionAppendResponse.ok) {
           const errorText = await uploadSessionAppendResponse.text();
-          if (errorText.includes("concurrent_session_invalid_offset")) {
+          if (errorText.message.includes("concurrent_session_invalid_offset")) {
             nextOffset = offset;
           } else {
             return new Response(
-              `Upload session append failed at offset ${offset}: ${errorText}`,
+              `Upload session append failed at offset ${offset}: ${errorText.message}`,
               { status: 500 },
             );
           }
@@ -138,7 +138,7 @@ export default {
       if (!uploadSessionFinishResponse.ok) {
         const errorText = await uploadSessionFinishResponse.text();
         console.error("Dropbox API failed raw response:", errorText);
-        return new Response(`Upload session finish failed: ${errorText}`, {
+        return new Response(`Upload session start failed: ${errorText}`, {
           status: uploadSessionFinishResponse.status,
         });
       }
