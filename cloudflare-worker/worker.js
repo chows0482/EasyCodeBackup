@@ -100,11 +100,11 @@ export default {
 
         if (!uploadSessionAppendResponse.ok) {
           const errorText = await uploadSessionAppendResponse.text();
-          if (errorText.message.includes("concurrent_session_invalid_offset")) {
+          if (errorText.includes("concurrent_session_invalid_offset")) {
             nextOffset = offset;
           } else {
             return new Response(
-              `Upload session append failed at offset ${offset}: ${errorText.message}`,
+              `Upload session append failed at offset ${offset}: ${errorText}`,
               { status: 500 },
             );
           }
