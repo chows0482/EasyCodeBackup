@@ -50,21 +50,22 @@ export default {
       }
 
       let uploadSessionStartResponse;
-      try {
-        uploadSessionStartResponse = await fetch(
-          "https://content.dropboxapi.com/2/files/upload_session/start",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Dropbox-API-Arg": JSON.stringify({ close: false }),
-              "Content-Type": "application/octet-stream",
-            },
+      uploadSessionStartResponse = await fetch(
+        "https://content.dropboxapi.com/2/files/upload_session/start",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Dropbox-API-Arg": JSON.stringify({ close: false }),
+            "Content-Type": "application/octet-stream",
           },
-        );
-      } catch (error) {
-        return new Response(`Upload session start failed: ${error.message}`, {
-          status: 500,
+        },
+      );
+      if (!uploadSessionStartResponse.ok) {
+        const errorText = await uploadSessionStartResponse.text();
+        console.error("Dropbox API failed raw response:", errorText);
+        return new Response(`Upload session start failed: ${errorText}`, {
+          status: uploadSessionStartResponse.status,
         });
       }
 
@@ -78,32 +79,32 @@ export default {
         let nextOffset = Math.min(offset + CHUNK_MiB, zipSize);
         const chunkBlob = zippedFile.slice(offset, nextOffset);
 
-        let uploadSessionAppendResponse;
-        try {
-          uploadSessionAppendResponse = await fetch(
-            "https://content.dropboxapi.com/2/files/upload_session/append_v2",
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Dropbox-API-Arg": JSON.stringify({
-                  close: false,
-                  cursor: {
-                    offset: offset,
-                    session_id: sessionId,
-                  },
-                }),
-                "Content-Type": "application/octet-stream",
-              },
-              body: chunkBlob,
+        let uploadSessionAppendResponse = await fetch(
+          "https://content.dropboxapi.com/2/files/upload_session/append_v2",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Dropbox-API-Arg": JSON.stringify({
+                close: false,
+                cursor: {
+                  offset: offset,
+                  session_id: sessionId,
+                },
+              }),
+              "Content-Type": "application/octet-stream",
             },
-          );
-        } catch (error) {
-          if (error.message.includes("concurrent_session_invalid_offset")) {
+            body: chunkBlob,
+          },
+        );
+
+        if (!uploadSessionAppendResponse.ok) {
+          const errorText = await uploadSessionAppendResponse.text();
+          if (errorText.message.includes("concurrent_session_invalid_offset")) {
             nextOffset = offset;
           } else {
             return new Response(
-              `Upload session append failed at offset ${offset}: ${error.message}`,
+              `Upload session append failed at offset ${offset}: ${errorText.message}`,
               { status: 500 },
             );
           }
@@ -111,35 +112,34 @@ export default {
         offset = nextOffset;
       }
 
-      let uploadSessionFinishResponse;
-
-      try {
-        uploadSessionFinishResponse = await fetch(
-          "https://content.dropboxapi.com/2/files/upload_session/finish",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Dropbox-API-Arg": JSON.stringify({
-                commit: {
-                  autorename: true,
-                  mode: JSON.parse(uploadMode),
-                  mute: true,
-                  path: zippedFile.name,
-                  strict_conflict: false,
-                },
-                cursor: {
-                  offset: zipSize,
-                  session_id: sessionId,
-                },
-              }),
-              "Content-Type": "application/octet-stream",
-            },
+      let uploadSessionFinishResponse = await fetch(
+        "https://content.dropboxapi.com/2/files/upload_session/finish",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Dropbox-API-Arg": JSON.stringify({
+              commit: {
+                autorename: true,
+                mode: JSON.parse(uploadMode),
+                mute: true,
+                path: zippedFile.name,
+                strict_conflict: false,
+              },
+              cursor: {
+                offset: zipSize,
+                session_id: sessionId,
+              },
+            }),
+            "Content-Type": "application/octet-stream",
           },
-        );
-      } catch (error) {
-        return new Response(`Upload session finish failed: ${error.message}`, {
-          status: 500,
+        },
+      );
+      if (!uploadSessionFinishResponse.ok) {
+        const errorText = await uploadSessionFinishResponse.text();
+        console.error("Dropbox API failed raw response:", errorText);
+        return new Response(`Upload session start failed: ${errorText}`, {
+          status: uploadSessionFinishResponse.status,
         });
       }
 
