@@ -1,3 +1,4 @@
 allowBuilds:
   '@playwright/browser-chromium': true
   esbuild: true
+  workerd: true

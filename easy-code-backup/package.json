@@ -16,12 +16,20 @@
   "contributes": {
     "commands": [
       {
+        "command": "easy-code-backup.backupDropbox",
+        "title": "Easy Code Backup: Backup to Dropbox"
+      },
+      {
         "command": "easy-code-backup.customBackupDropbox",
         "title": "Easy Code Backup: Backup to Dropbox with Custom Folder Name"
       },
       {
-        "command": "easy-code-backup.backupDropbox",
-        "title": "Easy Code Backup: Backup to Dropbox"
+        "command": "easy-code-backup.backupDrive",
+        "title": "Easy Code Backup: Backup to Google Drive"
+      },
+      {
+        "command": "easy-code-backup.customBackupDrive",
+        "title": "Easy Code Backup: Backup to Google Drive with Custom Folder Name"
       }
     ]
   },
@@ -51,7 +59,8 @@
     "mocha": "^11.7.6",
     "npm-run-all": "^4.1.5",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.1"
+    "typescript-eslint": "^8.61.1",
+    "wrangler": "^4.129.0"
   },
   "overrides": {
     "diff": "^8.0.4",

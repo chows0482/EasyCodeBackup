@@ -24,16 +24,25 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 	});
-	context.subscriptions.push(uriHandler);
-	
+
 	context.subscriptions.push(
+		uriHandler,
 		vscode.commands.registerCommand('easy-code-backup.backupDropbox', async () => {
 			await vscode.window.withProgress({
 				location: vscode.ProgressLocation.Notification,
 				title: "Checking connection to Dropbox...",
 				cancellable: true
 			}, async (progress, token) => {
-				await upload('default', progress, token);
+				await upload('default', 'Dropbox', progress, token);
+			});
+		}),
+		vscode.commands.registerCommand('easy-code-backup.backupDrive', async () => {
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Checking connection to Google Drive...",
+				cancellable: true
+			}, async (progress, token) => {
+				await upload('default', 'Google Drive', progress, token);
 			});
 		}),
 		vscode.commands.registerCommand('easy-code-backup.customBackupDropbox', async () => {
@@ -42,51 +51,49 @@ export function activate(context: vscode.ExtensionContext) {
 				title: "Checking connection to Dropbox...",
 				cancellable: true
 			}, async (progress, token) => {
-				const localDate = new Intl.DateTimeFormat("en-CA", {
-					timeZone: systemTimeZone || "UTC",
-					year: "numeric",
-					month: "2-digit",
-					day: "2-digit",
-				}).format(new Date());
-
-				const now = new Date();
-				const timeParts = new Intl.DateTimeFormat("en-CA", {
-					timeZone: systemTimeZone || "UTC",
-					hour: "2-digit",
-					minute: "2-digit",
-					hour12: false,
-				}).formatToParts(now);
-
-				const hour = timeParts.find(p => p.type === 'hour')?.value;
-				const minute = timeParts.find(p => p.type === 'minute')?.value;
-				const localTime = `${hour}h${minute}m`;
-				
-				let folderName = await vscode.window.showInputBox({
-					prompt: "Enter your backup folder name",
-					placeHolder: "Leave empty to use timestamped folder name",
-					ignoreFocusOut: true
-				});
-
-				if (!folderName) {
-					folderName = `${localDate} at ${localTime}`;
-				}
-
-				await upload(folderName, progress, token);
+				await upload(await getCustomFolderName(), 'Dropbox', progress, token);
 			});
 		}),
 	);
 
+	async function getCustomFolderName(): Promise<string> {
+		const now = new Date();
+		const localDate = new Intl.DateTimeFormat("en-CA", {
+			timeZone: systemTimeZone || "UTC",
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+		}).format(now);
+		const timeParts = new Intl.DateTimeFormat("en-CA", {
+			timeZone: systemTimeZone || "UTC",
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		}).formatToParts(now);
+
+		const hour = timeParts.find(part => part.type === 'hour')?.value;
+		const minute = timeParts.find(part => part.type === 'minute')?.value;
+		
+		let folderName = await vscode.window.showInputBox({
+			prompt: "Enter your backup folder name",
+			placeHolder: "Leave empty to use timestamped folder name",
+			ignoreFocusOut: true
+		});
+		return folderName || `${localDate} ${hour}h${minute}m`;
+	}
+
 	async function upload(
 		uploadType: string,
+		uploadService: "Dropbox" | "Google Drive" | "OneDrive",
 		progress: vscode.Progress<{ increment: number; message?: string }>,
 		token: vscode.CancellationToken
 	): Promise<void> {
 		try {
 				let accessToken = await context.secrets.get("dropboxAuthAccessToken");
 				if (!accessToken) {
-					progress.report({ increment: 5, message: "Connecting to Dropbox..." });
+					progress.report({ increment: 5, message: `Connecting to ${uploadService}...` });
 
-					vscode.env.openExternal(vscode.Uri.parse("https://easycodebackup.chows0482.workers.dev/dropbox-auth?" +
+					vscode.env.openExternal(vscode.Uri.parse(`https://easycodebackup.chows0482.workers.dev/${uploadService.replaceAll(' ', '').toLowerCase()}-auth?` +
 						new URLSearchParams({
 							"state-fromVSCode": vscode.env.uriScheme === "vscode-insiders" ? "insiders" : "stable",
 						}).toString()));
@@ -142,7 +149,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 				progress.report({ increment: 25, message: `Uploading ${folderName}.zip...` });
 				
-				const response = await fetch('https://easycodebackup.chows0482.workers.dev/dropbox', {
+				const response = await fetch(`https://easycodebackup.chows0482.workers.dev/${uploadService.replaceAll(' ', '').toLowerCase()}`, {
 					method: 'POST',
 					body: formData
 				});

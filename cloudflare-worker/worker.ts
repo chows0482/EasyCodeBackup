@@ -1,15 +1,19 @@
+export interface Env {
+  DROPBOX_APP_SECRET: string;
+}
+
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith("/dropbox") && request.method == "POST") {
       const formData = await request.formData();
 
-      let accessToken = formData.get("accessToken");
-      const refreshToken = formData.get("refreshToken");
+      let accessToken = formData.get("accessToken") as string;
+      const refreshToken = formData.get("refreshToken") as string;
       const zippedFile = formData.get("zippedFile");
       const systemTimeZone = formData.get("systemTimeZone");
-      const uploadMode = formData.get("uploadMode");
+      const uploadMode = formData.get("uploadMode") as string;
 
       if (!zippedFile || typeof zippedFile === "string") {
         return new Response("No valid file attached.", { status: 400 });
@@ -27,7 +31,7 @@ export default {
         },
       );
 
-      const accessTokenValidityObject = await accessTokenValidity.json();
+      const accessTokenValidityObject = await accessTokenValidity.json() as any;
 
       if (accessTokenValidityObject.result !== "valid") {
         // Refresh the access token
@@ -45,7 +49,7 @@ export default {
             }).toString(),
           },
         );
-        const tokenResponseObject = await tokenResponse.json();
+        const tokenResponseObject = await tokenResponse.json() as any;
         accessToken = tokenResponseObject.access_token;
       }
 
@@ -69,7 +73,7 @@ export default {
         });
       }
 
-      const sessionData = await uploadSessionStartResponse.json();
+      const sessionData = await uploadSessionStartResponse.json() as any;
       const sessionId = sessionData.session_id;
       const CHUNK_MiB = 64 * 1024 * 1024; // 64 MiB
       const zipSize = zippedFile.size;
@@ -199,7 +203,7 @@ export default {
           });
         }
 
-        const tokens = await tokenResponse.json();
+        const tokens = await tokenResponse.json() as any;
         const state = url.searchParams.get("state") || "stable";
 
         let baseScheme = "vscode://chows0482.easy-code-backup/dropbox-tokens";
@@ -222,10 +226,10 @@ export default {
               Authorization: `Basic ${btoa("hr16cwardesohx2:" + env.DROPBOX_APP_SECRET)}`,
               "Content-Type": "application/json",
             },
-            body: {
+            body: JSON.stringify({
               url: "https://raw.githubusercontent.com/chows0482/EasyCodeBackup/refs/heads/main/README.md",
               path: "/README.md",
-            },
+            }),
           },
         );
 
@@ -243,7 +247,7 @@ export default {
         `,
           { headers: { "Content-Type": "text/html; charset=utf-8" } },
         );
-      } catch (error) {
+      } catch (error: any) {
         return new Response(
           `Worker Interception Crash: ${error.message}: ${error.stack}`,
           { status: 500 },
