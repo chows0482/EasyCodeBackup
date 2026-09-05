@@ -1,9 +1,15 @@
 export interface Env {
   DROPBOX_APP_SECRET: string;
+  GDRIVE_APP_SECRET: string;
 }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const appIDs = {
+      dropbox: "hr16cwardesohx2",
+      gdrive: "1005825225538-60rk84b2jekoov9o3tml38rfs1d8spuq.apps.googleusercontent.com",
+    };
+
     const url = new URL(request.url);
 
     if (url.pathname.startsWith("/dropbox") && request.method == "POST") {
