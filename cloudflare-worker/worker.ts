@@ -18,7 +18,6 @@ export default {
       let accessToken = formData.get("accessToken") as string;
       const refreshToken = formData.get("refreshToken") as string;
       const zippedFile = formData.get("zippedFile");
-      const systemTimeZone = formData.get("systemTimeZone");
       const uploadMode = formData.get("uploadMode") as string;
 
       if (!zippedFile || typeof zippedFile === "string") {
@@ -59,8 +58,7 @@ export default {
         accessToken = tokenResponseObject.access_token;
       }
 
-      let uploadSessionStartResponse;
-      uploadSessionStartResponse = await fetch(
+      const uploadSessionStartResponse = await fetch(
         "https://content.dropboxapi.com/2/files/upload_session/start",
         {
           method: "POST",
@@ -89,7 +87,7 @@ export default {
         let nextOffset = Math.min(offset + CHUNK_MiB, zipSize);
         const chunkBlob = zippedFile.slice(offset, nextOffset);
 
-        let uploadSessionAppendResponse = await fetch(
+        const uploadSessionAppendResponse = await fetch(
           "https://content.dropboxapi.com/2/files/upload_session/append_v2",
           {
             method: "POST",
@@ -122,7 +120,7 @@ export default {
         offset = nextOffset;
       }
 
-      let uploadSessionFinishResponse = await fetch(
+      const uploadSessionFinishResponse = await fetch(
         "https://content.dropboxapi.com/2/files/upload_session/finish",
         {
           method: "POST",
