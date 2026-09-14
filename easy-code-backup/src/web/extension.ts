@@ -33,7 +33,18 @@ export function activate(context: vscode.ExtensionContext) {
 				title: "Checking connection to Dropbox...",
 				cancellable: true
 			}, async (progress, token) => {
-				await upload('default', 'Dropbox', progress, token);
+				await prepareInformation('Dropbox', progress, token)
+				.then(async ({ accessToken,filepathURI }) => upload(accessToken, `/${filepathURI!.fsPath.split(/[\\/]/).pop() || 'archive'}/Project.zip`, filepathURI!, progress, token, 'Dropbox'));
+			});
+		}),
+		vscode.commands.registerCommand('easy-code-backup.restoreDropbox', async () => {
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Checking connection to Dropbox...",
+				cancellable: true
+			}, async (progress, token) => {
+				await prepareInformation('Dropbox', progress, token)
+				.then(async ({ accessToken, filepathURI }) => upload(accessToken, `/${filepathURI!.fsPath.split(/[\\/]/).pop() || 'archive'}/${await getCustomFolderName()}`, filepathURI!, progress, token, 'Dropbox'));
 			});
 		}),
 		vscode.commands.registerCommand('easy-code-backup.backupDrive', async () => {
@@ -42,7 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
 				title: "Checking connection to Google Drive...",
 				cancellable: true
 			}, async (progress, token) => {
-				await upload('default', 'Google Drive', progress, token);
+				//await upload('Project.zip', 'Google Drive', progress, token);
 			});
 		}),
 		vscode.commands.registerCommand('easy-code-backup.customBackupDropbox', async () => {
@@ -51,7 +62,8 @@ export function activate(context: vscode.ExtensionContext) {
 				title: "Checking connection to Dropbox...",
 				cancellable: true
 			}, async (progress, token) => {
-				await upload(await getCustomFolderName(), 'Dropbox', progress, token);
+				await prepareInformation('Dropbox', progress, token)
+				.then(async ({ accessToken, filepathURI }) => upload(accessToken, `/${filepathURI!.fsPath.split(/[\\/]/).pop() || 'archive'}/${await getCustomFolderName()}`, filepathURI!, progress, token, 'Dropbox'));
 			});
 		}),
 	);
@@ -82,43 +94,57 @@ export function activate(context: vscode.ExtensionContext) {
 		return folderName || `${localDate} ${hour}h${minute}m`;
 	}
 
-	async function upload(
-		uploadType: string,
+	async function prepareInformation(
 		uploadService: "Dropbox" | "Google Drive" | "OneDrive",
 		progress: vscode.Progress<{ increment: number; message?: string }>,
 		token: vscode.CancellationToken
+	): Promise<{ accessToken: string; filepathURI?: vscode.Uri }> {
+		try {
+			let accessToken = await context.secrets.get("dropboxAuthAccessToken");
+			if (!accessToken) {
+				progress.report({ increment: 5, message: `Connecting to ${uploadService}...` });
+				vscode.env.openExternal(vscode.Uri.parse(`https://easycodebackup.chows0482.workers.dev/${uploadService.replaceAll(' ', '').toLowerCase()}-auth?` +
+					new URLSearchParams({
+						"state-fromVSCode": vscode.env.uriScheme === "vscode-insiders" ? "insiders" : "stable",
+					}).toString()));
+
+				accessToken = await new Promise<string>((resolve, reject) => {
+					resolveAuthPromise = resolve;
+					
+					token.onCancellationRequested(() => {
+						resolveAuthPromise = null;
+						reject(new Error("Authentication cancelled by user."));
+					});
+				});
+
+				progress.report({ increment: 10, message: "Authenticated! Resuming backup..." });
+
+			}
+			const folders = vscode.workspace.workspaceFolders;
+			
+			if (!folders || folders.length === 0) {
+				vscode.window.showErrorMessage('Please open a folder before running a backup.');
+				throw new Error("No folder opened.");
+			}
+
+			const filepathURI = folders[0].uri;
+			const folderName = `/${filepathURI.fsPath.split(/[\\/]/).pop() || 'archive'}/${await getCustomFolderName()}`;
+			return { "accessToken": accessToken, "filepathURI": filepathURI };
+		} catch (error: any) {
+			vscode.window.showErrorMessage(`Process error: ${error.message}`);
+			throw new Error("Error retrieving information."); 
+		}
+	}
+
+	async function upload(
+		accessToken: string,
+		folderName: string,
+		filepathURI: vscode.Uri,
+		progress: vscode.Progress<{ increment: number; message?: string }>,
+		token: vscode.CancellationToken,
+		uploadService: "Dropbox" | "Google Drive" | "OneDrive",
 	): Promise<void> {
 		try {
-				let accessToken = await context.secrets.get("dropboxAuthAccessToken");
-				if (!accessToken) {
-					progress.report({ increment: 5, message: `Connecting to ${uploadService}...` });
-
-					vscode.env.openExternal(vscode.Uri.parse(`https://easycodebackup.chows0482.workers.dev/${uploadService.replaceAll(' ', '').toLowerCase()}-auth?` +
-						new URLSearchParams({
-							"state-fromVSCode": vscode.env.uriScheme === "vscode-insiders" ? "insiders" : "stable",
-						}).toString()));
-
-					accessToken = await new Promise<string>((resolve, reject) => {
-						resolveAuthPromise = resolve;
-						
-						token.onCancellationRequested(() => {
-							resolveAuthPromise = null;
-							reject(new Error("Authentication cancelled by user."));
-						});
-					});
-
-					progress.report({ increment: 10, message: "Authenticated! Resuming backup..." });
-
-				}
-				const folders = vscode.workspace.workspaceFolders;
-				
-				if (!folders || folders.length === 0) {
-					vscode.window.showErrorMessage('Please open a folder before running a backup.');
-					return;
-				}
-
-				const filepathURI = folders[0].uri;
-
 				const zipStructure: fflate.Zippable = {};
 				await buildZipStructure(filepathURI, '', zipStructure, token);
 
@@ -133,10 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
 				const zippedData = fflate.zipSync(zipStructure);
 
 				const zipBlob = new Blob([zippedData], { type: 'application/zip' });
-				let folderName = filepathURI.fsPath.split(/[\\/]/).pop() || 'archive';
 				const refreshToken = await context.secrets.get("dropboxRefreshToken");
-
-				folderName = uploadType === 'default' ? `/${folderName}/Project` : `/${folderName}/${uploadType}`;
 
 				const rev = context.workspaceState.get("dropboxRev");
 

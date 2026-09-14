@@ -158,6 +158,10 @@ export default {
       });
     }
 
+    if (url.pathname.startsWith("/dropbox") && request.method == "GET") {
+      console.log();
+    }  
+
     if (url.pathname.startsWith("/dropbox-auth")) {
       if (url.searchParams.get("state-fromVSCode")) {
         const dropboxLoginUrl = new URL(
